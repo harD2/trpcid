@@ -480,3 +480,4 @@ summary(glm(DAS28 ~ low.trp, clindat[low.crp == "low CRP"], family = "gaussian")
 clindat[!is.na(DAS28), Hauptdiagnose]
 clindat[low.crp == "low CRP" & !is.na(cdai), .N, low.trp]
 clindat[low.crp == "low CRP" & !is.na(complete.mayo), .N, low.trp]
+

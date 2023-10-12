@@ -133,12 +133,12 @@ trp.bp <-
   geom_boxplot(position = position_dodge(width =1), outlier.shape = NA) +
   geom_point(pch=21, size=1.5, position=position_jitterdodge(jitter.width=0.1, dodge.width=1), alpha = 0.5) +
   scale_fill_manual(values = c("#DBA8AC", "#26547C", "#79A9D1")) +
-  labs(x = "Disease cohort", y = "Trp [μM]", fill = "Trp Status")+
+  labs(x = "Affected organ group", y = "Trp [μM]", fill = "Trp Status")+
   scale_y_log10() +
   theme_bw()
 trp.bp
 
-cairo_pdf("./out/trp_deriv_boxplots_21032023/trp_boxplot_diseasecohort_trpstatus_02032023.pdf", 3, 3)
+cairo_pdf("./out/trp_deriv_boxplots_29062023/trp_boxplot_diseasecohort_trpstatus_21032023.pdf", 3, 3)
 trp.bp + theme(legend.position = "none")
 dev.off()
 
@@ -235,3 +235,4 @@ stool_trp_violin <- ggplot(stool, aes(x=Trp.status, y=Trp, fill = Trp.status)) +
 pdf("./out/stool_trp_violin_03032023.pdf", 4.5, 3)
 stool_trp_violin
 dev.off()
+
