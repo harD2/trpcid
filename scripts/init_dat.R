@@ -15,8 +15,11 @@ clindat[, `:=`(Hauptdiagnose = factor(Hauptdiagnose,
                                              "Pso")),
                Disease.cohort = factor(Disease.cohort),
                biologicum.status = factor(biologicum.status, c("never", "change"), 
-                                          c("No", "Yes")))]
+                                          c("No", "Yes")),
+               sex = factor(sex, c("Female", "Male")))]
 clindat[DAS28 > 9.4, DAS28 := NA] # outside of actual DAS28 range 0 - 9.4
+nrow(clindat[Trp < 10]) # 18 observations are removed as they are far outside of the normal observational range and are likely due to error with decimal point ("," versus ".")
+clindat[Trp < 10, Trp := NA]
 clindat[!is.na(Trp), `:=`(visit.no = 1:.N, no.observations = .N), Patient.no]
 mets <- fread("./data/clean/cohort2_serum_biocrates_public_05062023.csv")
 setnames(mets, c("3-IAA", "3-IPA", "Ind-SO4"), c("IAA", "IPA", "IndSO4"))
