@@ -29,18 +29,15 @@ lmm.all.mod <- lmer("log10(Trp) ~ Hauptdiagnose + sex + (1|Patient.no)", clindat
 plot(fitted(lmm.all.mod), resid(lmm.all.mod))
 plot(resid(lmm.all.mod))
 lmm.all <- summary(lmm.all.mod)
-lmm.all
+
 y_shift <- list() 
 for (disease in levels(clindat$Hauptdiagnose)) {
   y_shift[[disease]] <- clindat[Hauptdiagnose %in% disease, quantile(Trp, probs = c(0.35, 0.6), na.rm = TRUE, names = FALSE)]
-    # The significance stars are to be plotted at the 0.6 quantile
+  # The significance stars are to be plotted at the 0.6 quantile
 }
-round(lmm.all$coefficients[,-5], 3)
-lmm.all.conf <- confint(lmm.all.mod)
+
 hauptdiagnose.coef <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$Hauptdiagnose), "sex"),
-                                          round(lmm.all$coefficients[,-5], 3),
-                                          `CI 2.5%` = round(lmm.all.conf[-c(1:2), "2.5 %"], 3),
-                                          `CI 97.5%` = round(lmm.all.conf[-c(1:2), "97.5 %"], 3),
+                                          lmm.all$coefficients[,-5],
                                           lower.tail.p = c(NA,as.numeric(pt(q = lmm.all$coefficients[c(-1,-15),4], lmm.all$coefficients[c(-1,-15),3], lower.tail = TRUE)), NA),
                                           fdr = c(NA, p.adjust(as.numeric(pt(q = lmm.all$coefficients[c(-1,-15),4], lmm.all$coefficients[c(-1,-15),3], lower.tail = TRUE)), method = "fdr"), NA),
                                           # calculate lower tail p-value from t value and df
@@ -58,7 +55,7 @@ hauptdiagnose.coef[, Disease.cohort := Hauptdiagnose]
 disease.entity.box <- ggplot(clindat, aes(Hauptdiagnose, Trp, fill = Disease.cohort)) +
   annotate('ribbon', x = c(-Inf, Inf), ymin = y_iqr_ctrl[1], ymax = y_iqr_ctrl[2],
            alpha = 1, fill = 'lightgrey') +
-  geom_boxplot() +
+  geom_boxplot(outlier.shape = NA) +
   scale_fill_manual(values = disease.colours) +
   labs(y = "Trp [µM]", x = "") +
   ylim(c(0,100))+
@@ -71,12 +68,10 @@ disease.entity.box <- ggplot(clindat, aes(Hauptdiagnose, Trp, fill = Disease.coh
         legend.position = "none") +
   geom_text(data = hauptdiagnose.coef[fdr <= 0.05], aes(Hauptdiagnose, y = y.sig, label = Sig)) +
   geom_text(data = hauptdiagnose.coef[fdr > 0.05], aes(Hauptdiagnose, y = y.sig, label = Sig), size = 3, parse = TRUE)# +
-  #geom_text(data = hauptdiagnose.coef, aes(Hauptdiagnose, y = y.no, label = N), size = 2.5)
-
-
-
+#geom_text(data = hauptdiagnose.coef, aes(Hauptdiagnose, y = y.no, label = N), size = 2.5)
+hauptdiagnose.coef
 disease.entity.box
-svg("./out/boxplot_disease_entities_15122023.svg", width = 6, height = 3.33)
+svg("./out/boxplot_disease_entities_inkscape_sizing_13122023.svg", width = 6, height = 3.33)
 disease.entity.box +
   theme(legend.position = c(0.15, 0.92),
         legend.background = element_blank(),
@@ -87,6 +82,21 @@ disease.entity.box +
 dev.off()
 
 
+### Same analysis but sex-separated
+lmm.females <-lmer("log10(Trp) ~ Hauptdiagnose + (1|Patient.no)", clindat[sex == "Female"])
+lmm.males <-lmer("log10(Trp) ~ Hauptdiagnose + (1|Patient.no)", clindat[sex == "Male"])
+summary(lmm.females)
+summary(lmm.males)
+ggplot(clindat[sex == "Female"], aes(Hauptdiagnose, Trp, fill = Disease.cohort)) +
+  geom_boxplot()
+
+ggplot(clindat[sex == "Male"], aes(Hauptdiagnose, Trp, fill = Disease.cohort)) +
+  geom_boxplot()
+summary(lmer("log10(Trp) ~ Hauptdiagnose +  (age + sex|Patient.no)", clindat))
+
+clindat[sex == "Female" & !duplicated(Patient.no), .N, Hauptdiagnose]
+clindat[sex == "Male" & !duplicated(Patient.no), .N, Hauptdiagnose]
+
 ### Inactive Trp by disease ####
 clindat[CRP < 5, crp.inactive := "Inactive"]
 clindat[Hauptdiagnose == "Control", crp.inactive := "Control"]
@@ -96,22 +106,18 @@ plot(fitted(lmm.crp.inactive.mod), resid(lmm.crp.inactive.mod))
 plot(resid(lmm.crp.inactive.mod))
 plot(qqnorm(resid(lmm.crp.inactive.mod)))
 lmm.crp.inactive <- summary(lmm.crp.inactive.mod)
-lmm.crp.inactive
-lmm.crp.inactive.conf <-confint(lmm.all.mod)
+
 y_shift_crp <- list() 
 for (disease in levels(clindat$Hauptdiagnose)) {
   y_shift_crp[[disease]] <- clindat[!is.na(crp.inactive) & Hauptdiagnose %in% disease, quantile(Trp, probs = c(0.35, 0.6), na.rm = TRUE, names = FALSE)]
   # The significance stars are to be plotted at the 0.6 quantile
 }
 
-
 hauptdiagnose.coef.crp <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$Hauptdiagnose), "sex"),
-                                          lmm.crp.inactive$coefficients,
-                                          `CI 2.5%` = round(lmm.crp.inactive.conf[-c(1:2), "2.5 %"], 3),
-                                          `CI 97.5%` = round(lmm.crp.inactive.conf[-c(1:2), "97.5 %"], 3),
-                                          fdr = c(NA, p.adjust(lmm.crp.inactive$coefficients[c(-1, -15), 5], method = "fdr"), NA),
-                                          # calculate lower tail p-value from t value and df
-                                          y.sig = c(sapply(y_shift_crp, "[[", 2), NA), y.no = c(sapply(y_shift_crp, "[[", 1), NA))) # add y shift and sig stars
+                                              lmm.crp.inactive$coefficients,
+                                              fdr = c(NA, p.adjust(lmm.crp.inactive$coefficients[c(-1, -15), 5], method = "fdr"), NA),
+                                              # calculate lower tail p-value from t value and df
+                                              y.sig = c(sapply(y_shift_crp, "[[", 2), NA), y.no = c(sapply(y_shift_crp, "[[", 1), NA))) # add y shift and sig stars
 
 hauptdiagnose.coef.crp[, `:=`(y.sig = as.numeric(y.sig), y.no = as.numeric(y.no), fdr = as.numeric(fdr))] # y gives plotting location for significance stars
 hauptdiagnose.coef.crp[fdr <= 0.05, Sig := pasterics(as.numeric(fdr))]
@@ -126,8 +132,7 @@ hauptdiagnose.coef.crp[, Disease.cohort := Hauptdiagnose]
 disease.entity.inactive.crp.box <- ggplot(clindat[!is.na(crp.inactive)], aes(Hauptdiagnose, Trp, fill = Disease.cohort)) +
   annotate('ribbon', x = c(-Inf, Inf), ymin = y_iqr_ctrl[1], ymax = y_iqr_ctrl[2],
            alpha = 1, fill = 'lightgrey') +
-  geom_boxplot(#outlier.shape = NA
-               ) +
+  geom_boxplot(outlier.shape = NA) +
   scale_fill_manual(values = disease.colours) +
   labs(y = "Trp [µM]", x = "") +
   ylim(c(0,100))+
@@ -140,7 +145,7 @@ disease.entity.inactive.crp.box <- ggplot(clindat[!is.na(crp.inactive)], aes(Hau
         legend.position = "none") +
   geom_text(data = hauptdiagnose.coef.crp[fdr <= 0.05], aes(Hauptdiagnose, y = y.sig, label = Sig)) +
   geom_text(data = hauptdiagnose.coef.crp[fdr > 0.05], aes(Hauptdiagnose, y = y.sig, label = Sig), size = 3, parse = TRUE)# +
-  #geom_text(data = hauptdiagnose.coef.crp, aes(Hauptdiagnose, y = y.no, label = N), size = 2)
+#geom_text(data = hauptdiagnose.coef.crp, aes(Hauptdiagnose, y = y.no, label = N), size = 2)
 
 disease.entity.inactive.crp.box
 hauptdiagnose.coef.crp
@@ -158,43 +163,36 @@ dev.off()
 diagnoses <- clindat[Hauptdiagnose != "Control", unique(Hauptdiagnose)]
 trp_lmm_by_disease <- list()
 for (x in diagnoses) {
-    trp_lmm_by_disease[[x]]<- list(sum.mod = summary(lmer("log10(CRP) ~ log10(Trp) + sex + (1|Patient.no)",clindat[Hauptdiagnose == x])),
-                                   conf.mod = confint(lmer("log10(CRP) ~ log10(Trp) + sex + (1|Patient.no)",clindat[Hauptdiagnose == x])))
-    
-    plot(resid(trp_lmm_by_disease[[x]]$sum.mod), main = x)
+  trp_lmm_by_disease[[x]]<- summary(lmer("log10(CRP) ~ log10(Trp) + sex + (1|Patient.no)",clindat[Hauptdiagnose == x]))  
+  plot(resid(trp_lmm_by_disease[[x]]), main = x)
 } 
 
 
-coef_list <- as.data.table(cbind(t(sapply(trp_lmm_by_disease, function(x) x$sum.mod$coefficients[2,])), t(sapply(trp_lmm_by_disease, function(x) x$conf.mod["log10(Trp)",]))), keep.rownames = "Hauptdiagnose")
-
-coef_list[, `:=`(#min.est = Estimate-`Std. Error`, max.est = Estimate+`Std. Error`,
-  fdr = p.adjust(`Pr(>|t|)`, method = "fdr"))]
-coef_list[fdr <= 0.05, p.asterix := pasterics(fdr)]
-coef_list[fdr > 0.05, p.round := round(fdr, 3)]
+coef_list <- t(sapply(trp_lmm_by_disease, function(x) x$coefficients[2,]))
+coef_list<- as.data.table(coef_list, keep.rownames = "Hauptdiagnose")
+coef_list
+coef_list[, `:=`(min.est = Estimate-`Std. Error`, max.est = Estimate+`Std. Error`,
+                 `Pr(>|t|)` = NULL, fdr = p.adjust(`Pr(>|t|)`, method = "fdr"))]
 coef_list <- merge(coef_list, hauptdiagnose.colours, by = "Hauptdiagnose", all.x = T)
 
 
 write.csv(coef_list, "./out/ehealth_lmm_trp_and_crp_14032023.csv")
 
 coef_list[, Hauptdiagnose := factor(Hauptdiagnose, levels = rev(levels(clindat$Hauptdiagnose)))]
-#crp_forest <- 
-  ggplot(coef_list, mapping = aes(x = Hauptdiagnose, y = Estimate, ymin =`2.5 %`, ymax=`97.5 %`)) + 
+crp_forest <- 
+  ggplot(coef_list, mapping = aes(x = Hauptdiagnose, y = Estimate, ymin =min.est, ymax=max.est)) + 
   geom_errorbar(aes(color = Disease.cohort), size = 1, width = 0)+
   geom_point(aes(color = Disease.cohort), shape = 18, size = 3) +
-  geom_hline(yintercept=0, lty=2, color = "darkred", linewidth = 0.7, alpha = 0.7) +  # add a dotted line at x=1 after flip
+  geom_hline(yintercept=0, lty=2, color = "darkred", size = 0.7, alpha = 0.7) +  # add a dotted line at x=1 after flip
   coord_flip()+   # flip coordinates (puts labels on y axis)
   xlab(element_blank()) + 
-  ylab("Estimate (± 95% CI)") +
+  ylab("Estimate (± SE)") +
   scale_color_manual(values = disease.colours,
                      name = "Affected organ\nsystem") +
-    
-  geom_text(label = coef_list$p.asterix, vjust = +0.1, color = "#005f73") +
-  geom_text(label = coef_list$p.round, vjust = -0.7, color = "#005f73", size = 3) +
+  geom_text(label = paste(pasterics(coef_list$fdr)), vjust = +0.1, color = "#005f73") +
   theme_classic() + 
   theme(axis.text = element_text(color = "black"))
 
-  
-  
 cairo_pdf("./out/forest_plot_trp_crp_14032023.pdf", width = 4, height = 3.6)
 crp_forest +
   theme(legend.position = "none")
@@ -206,16 +204,11 @@ clindat[!is.na(DAS28), range(DAS28)]
 clindat[!is.na(PASI), range(PASI)]
 
 
-lmm.basdai <- lmer(BASDAI ~ log10(Trp) + sex+ 
-                     (1|Patient.no), clindat)
-lmm.das28.neg <- lmer(log(DAS28) ~ log10(Trp) + sex + 
-                        (1|Patient.no), clindat[Hauptdiagnose == "RAneg"])
-lmm.das28.pos <- lmer(log(DAS28) ~ log10(Trp) + sex + 
-                        (1|Patient.no), clindat[Hauptdiagnose == "RApos"])
-lmm.cdai <- lmer(cdai ~ log10(Trp) + sex +
-                   (1|Patient.no), clindat)
-lmm.cmayo <- lmer(complete.mayo ~ log10(Trp) + sex + 
-                    (1|Patient.no), clindat)
+lmm.basdai <- lmer(BASDAI ~ log10(Trp) + sex+  (1|Patient.no), clindat)
+lmm.das28.neg <- lmer(log(DAS28) ~ log10(Trp) + sex + (1|Patient.no), clindat[Hauptdiagnose == "RAneg"])
+lmm.das28.pos <- lmer(log(DAS28) ~ log10(Trp) + sex + (1|Patient.no), clindat[Hauptdiagnose == "RApos"])
+lmm.cdai <- lmer(cdai ~ log10(Trp) + sex + (1|Patient.no), clindat)
+lmm.cmayo <- lmer(complete.mayo ~ log10(Trp) + sex + (1|Patient.no), clindat)
 lm.pasi <- glm(PASI ~ log10(Trp), clindat, family = "gaussian") # only one female, one observation per patient#
 
 
@@ -234,7 +227,7 @@ range(clindat$DAS28, na.rm = T)
 
 count_dai_patients <- clindat[!is.na(BASDAI) | !is.na(PASI) | !is.na(DAS28)]
 count_dai_patients[!duplicated(Patient.no) & !is.na(BASDAI), .N, Hauptdiagnose]
-count_dai_patients[!duplicated(Patient.no) & !is.na(DAS28), .N, .(Hauptdiagnose, sex)]
+count_dai_patients[!duplicated(Patient.no) & !is.na(DAS28), .N, Hauptdiagnose]
 count_dai_patients[!duplicated(Patient.no) & !is.na(PASI), .N, Hauptdiagnose]
 
 summary(lmm.basdai)
@@ -253,10 +246,10 @@ basdai.point <- ggplot(clindat[!is.na(BASDAI)], aes(y = BASDAI, x = Trp)) +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) + 
   labs(x = "Trp [µM]") +
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.010; LMM"), size = 4) +
+  annotate("text", y = 8*0.95, x = 50, label = expression(paste(italic("p"), " = 0.010; LMM")), size = 4) +
   theme_bw()
 basdai.point
-
+?geom_smooth
 cairo_pdf("./out/basdai_point_plot_04042023.pdf", 2,2)
 basdai.point
 dev.off()
@@ -267,7 +260,7 @@ das28.point.neg <- ggplot(clindat[Hauptdiagnose == "RAneg"], aes(y = DAS28, x = 
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) +
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.003; LMM"), size = 4) +
+  annotate("text", y = 8*0.95, x = 50, label = expression(paste(italic("p"), " = 0.003; LMM")), size = 4) +
   labs(x = "Trp [µM]") +
   theme_bw()
 das28.point.neg
@@ -283,7 +276,7 @@ das28.point.pos <- ggplot(clindat[Hauptdiagnose == "RApos"], aes(y = DAS28, x = 
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) + 
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.583; LMM"), size = 4) +
+  annotate("text", y = 8*0.95, x = 50, label = expression(paste(italic("p"), " = 0.583; LMM")), size = 4) +
   labs(x = "Trp [µM]") +
   theme_bw()
 das28.point.pos
@@ -294,7 +287,7 @@ pasi.point <- ggplot(clindat, aes(x = Trp, y = PASI)) +
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,45)) +
-  annotate("text", y = 45*0.95, x = 50, label = paste0("p = 0.952; linear regression"), size = 4) +
+  annotate("text", y = 45*0.95, x = 50, label = expression(paste(italic("p"), " = 0.952; linear regression")), size = 4) +
   labs(x = "Trp [µM]") +
   theme_bw()
 pasi.point
@@ -304,7 +297,7 @@ cdai.point <- ggplot(clindat, aes(x = Trp, y = cdai)) +
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,650)) +
-  annotate("text", y = 650*0.95, x = 50, label = paste0("p < 0.001; LMM"), size = 4) +
+  annotate("text", y = 650*0.95, x = 50, label = expression(paste(italic("p"), " < 0.001; LMM")), size = 4) +
   labs(x = "Trp [µM]", y = "CDAI") +
   theme_bw()
 cdai.point
@@ -315,7 +308,7 @@ cmayo.point <- ggplot(clindat, aes(x = Trp, y = complete.mayo)) +
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,15)) +
-  annotate("text", y = 15*0.95, x = 50, label = paste0("p < 0.001; LMM"), size = 4) +
+  annotate("text", y = 15*0.95, x = 50, label = expression(paste(italic("p"), " < 0.001; LMM")), size = 4) +
   labs(x = "Trp [µM]", y = "Total Mayo") +
   theme_bw()
 cmayo.point
@@ -328,15 +321,13 @@ dai_combi
 cairo_pdf("./out/dai_point_plots_04042023.pdf", 12,8)
 dai_combi
 dev.off()
-confint(lm.pasi)
 
 
-dai_coef <- rbind(PASI = c(summary(lm.pasi)$coef[2,1:2], df = df.residual(lm.pasi), summary(lm.pasi)$coef[2,3:4], confint(lm.pasi)["log10(Trp)",]),
-                  DAS28_RAneg = c(summary(lmm.das28.neg)$coef[2,], confint(lmm.das28.neg)["log10(Trp)",]),
-                  DAS28_RApos = c(summary(lmm.das28.pos)$coef[2,], confint(lmm.das28.pos)["log10(Trp)",]),
-                  BASDAI = c(summary(lmm.basdai)$coef[2,], confint(lmm.basdai)["log10(Trp)",]),
-                  CDAI = c(summary(lmm.cdai)$coef[2,], confint(lmm.cdai)["log10(Trp)",]),
-                  cMayo = c(summary(lmm.cmayo)$coef[2,], confint(lmm.cmayo)["log10(Trp)",]))
+dai_coef <- rbind(PASI = c(summary(lm.pasi)$coef[2,1:2], df = df.residual(lm.pasi), summary(lm.pasi)$coef[2,3:4]),
+                  DAS28_RAneg = summary(lmm.das28.neg)$coef[2,], DAS28_RApos = summary(lmm.das28.pos)$coef[2,],
+                  BASDAI = summary(lmm.basdai)$coef[2,],
+                  CDAI = summary(lmm.cdai)$coef[2,],
+                  cMayo = summary(lmm.cmayo)$coef[2,])
 dai_coef <- as.data.table(dai_coef, keep.rownames = "DAI")
 write.csv(dai_coef, "./out/dai_lmm_lm_estimate_tables.csv", row.names = FALSE)
 
@@ -349,14 +340,8 @@ clindat[!duplicated(Patient.no) & Hauptdiagnose != "Control", .(mean.obs = mean(
 plot(density(clindat[!duplicated(Patient.no) & !is.na(crp_sd), crp_sd]))
 plot(density(clindat[!duplicated(Patient.no) & !is.na(trp_sd), trp_sd]))
 wcxt_trp <- wilcox.test(trp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no)])
-wilcox.test(trp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) & sex == "Female"])
-wilcox.test(trp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) & sex == "Male"])
-
 wcxt_crp <- wilcox.test(crp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no)])
-wilcox.test(crp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) & sex == "Female"])
-wilcox.test(crp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) & sex == "Male"])
 wcxt_trp$p.value
-
 
 
 varplot_trp <- 
@@ -373,14 +358,13 @@ varplot_trp <-
   scale_y_continuous(trans = "log10", labels = ~(format(.x, scientific = FALSE)), limits = c(0.01,300)) +
   geom_line(data = data.table(x = c(1, 2), y = c(70, 70)), 
             aes(x = x, y = y), inherit.aes = FALSE) +
-  geom_text(data = data.table(x = c(1.5), y = c(100)), 
+  geom_text(data = data.table(x = c(1.5), y = c(70)), 
             aes(x = x, y = y), 
-            label = paste0("p = ", round(wcxt_trp$p.value, 3)), inherit.aes = FALSE, size = 4)
+            label = pasterics(wcxt_trp$p.value), inherit.aes = FALSE, size = 5.5)
 
 pdf("out/ehealth_trp_variance_biologicum_barplots_16032023.pdf", width = 3, height = 3)
 varplot_trp
 dev.off()
-
 
 
 varplot_crp <- 
@@ -397,9 +381,9 @@ varplot_crp <-
   scale_y_continuous(trans = "log10", labels = ~(format(.x, scientific = FALSE)), limits = c(0.01, 300)) +
   geom_line(data = data.table(x = c(1, 2), y = c(175, 175)),
             aes(x = x, y = y), inherit.aes = FALSE) +
-  geom_text(data = data.table(x = c(1.5), y = c(250)),
+  geom_text(data = data.table(x = c(1.5), y = c(180)),
             aes(x = x, y = y),
-            label = paste0("p = ", round(wcxt_crp$p.value, 3)), inherit.aes = FALSE, size = 4)
+            label = pasterics(wcxt_crp$p.value), inherit.aes = FALSE, size = 5.5)
 
 pdf("out/ehealth_crp_variance_biologicum_barplots_16032023.pdf", width = 3, height = 3)
 varplot_crp
@@ -408,12 +392,12 @@ dev.off()
 
 
 individualplot <- ggplot(clindat[!is.na(Trp) & Patient.no %in% c(383, 30) & visit.no <= 20,  ],
-                              aes(x = visit.no, y = Trp, group = Patient.no, color = biologicum.status)) +
+                         aes(x = visit.no, y = Trp, group = Patient.no, color = biologicum.status)) +
   facet_wrap(~biologicum.status, nrow = 1) +
   geom_line()+
   geom_point() +
   theme_bw() +
-  ylim(c(0,60)) +<
+  ylim(c(0,60)) +
   ylab("Serum Tryptophan [µM]") +
   xlab("Visit number") +
   labs(title = "Therapy escalation") + 
