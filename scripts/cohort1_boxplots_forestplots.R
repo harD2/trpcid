@@ -35,14 +35,14 @@ for (disease in levels(clindat$Hauptdiagnose)) {
   y_shift[[disease]] <- clindat[Hauptdiagnose %in% disease, quantile(Trp, probs = c(0.35, 0.6), na.rm = TRUE, names = FALSE)]
     # The significance stars are to be plotted at the 0.6 quantile
 }
-round(lmm.all$coefficients[,-5], 3)
+
 lmm.all.conf <- confint(lmm.all.mod)
 hauptdiagnose.coef <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$Hauptdiagnose), "sex"),
-                                          round(lmm.all$coefficients[,-5], 3),
-                                          `CI 2.5%` = round(lmm.all.conf[-c(1:2), "2.5 %"], 3),
-                                          `CI 97.5%` = round(lmm.all.conf[-c(1:2), "97.5 %"], 3),
-                                          lower.tail.p = c(NA,as.numeric(pt(q = lmm.all$coefficients[c(-1,-15),4], lmm.all$coefficients[c(-1,-15),3], lower.tail = TRUE)), NA),
-                                          fdr = c(NA, p.adjust(as.numeric(pt(q = lmm.all$coefficients[c(-1,-15),4], lmm.all$coefficients[c(-1,-15),3], lower.tail = TRUE)), method = "fdr"), NA),
+                                          signif(lmm.all$coefficients[,-5], 2),
+                                          `CI 2.5%` = signif(lmm.all.conf[-c(1:2), "2.5 %"], 2),
+                                          `CI 97.5%` = signif(lmm.all.conf[-c(1:2), "97.5 %"], 2),
+                                          lower.tail.p = c(NA,signif(as.numeric(pt(q = lmm.all$coefficients[c(-1,-15),4], lmm.all$coefficients[c(-1,-15),3], lower.tail = TRUE)), 2), NA),
+                                          fdr = c(NA, signif(p.adjust(as.numeric(pt(q = lmm.all$coefficients[c(-1,-15),4], lmm.all$coefficients[c(-1,-15),3], lower.tail = TRUE)), method = "fdr"), 2), NA),
                                           # calculate lower tail p-value from t value and df
                                           y.sig = c(sapply(y_shift, "[[", 2), NA), y.no = c(sapply(y_shift, "[[", 1), NA))) # add y shift and sig stars
 
@@ -85,7 +85,7 @@ disease.entity.box +
         legend.key.size = unit(3.5, "mm"))+
   guides(fill = guide_legend(nrow = 2, title = "Affected organ system", size = 12))
 dev.off()
-
+?geom_boxplot
 
 ### Inactive Trp by disease ####
 clindat[CRP < 5, crp.inactive := "Inactive"]
@@ -106,11 +106,10 @@ for (disease in levels(clindat$Hauptdiagnose)) {
 
 
 hauptdiagnose.coef.crp <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$Hauptdiagnose), "sex"),
-                                          lmm.crp.inactive$coefficients,
-                                          `CI 2.5%` = round(lmm.crp.inactive.conf[-c(1:2), "2.5 %"], 3),
-                                          `CI 97.5%` = round(lmm.crp.inactive.conf[-c(1:2), "97.5 %"], 3),
-                                          fdr = c(NA, p.adjust(lmm.crp.inactive$coefficients[c(-1, -15), 5], method = "fdr"), NA),
-                                          # calculate lower tail p-value from t value and df
+                                          signif(lmm.crp.inactive$coefficients, 2),
+                                          `CI 2.5%` = signif(lmm.crp.inactive.conf[-c(1:2), "2.5 %"], 2),
+                                          `CI 97.5%` = signif(lmm.crp.inactive.conf[-c(1:2), "97.5 %"], 2),
+                                          fdr = c(NA, signif(p.adjust(lmm.crp.inactive$coefficients[c(-1, -15), 5], method = "fdr"), 2), NA), #NOT LOWER TAILED
                                           y.sig = c(sapply(y_shift_crp, "[[", 2), NA), y.no = c(sapply(y_shift_crp, "[[", 1), NA))) # add y shift and sig stars
 
 hauptdiagnose.coef.crp[, `:=`(y.sig = as.numeric(y.sig), y.no = as.numeric(y.no), fdr = as.numeric(fdr))] # y gives plotting location for significance stars
@@ -120,6 +119,10 @@ hauptdiagnose.coef.crp[fdr > 0.05, Sig := paste0("italic('", round(fdr, 2), "')"
 hauptdiagnose.coef.crp[Hauptdiagnose == "CD", pasterics(as.numeric(fdr))]
 hauptdiagnose.coef.crp <- hauptdiagnose.coef.crp[!Hauptdiagnose %in% "sex"] # do not include sex in output
 hauptdiagnose.coef.crp <- merge(hauptdiagnose.coef.crp, clindat[!duplicated(Patient.no) & !is.na(crp.inactive), .N, Hauptdiagnose], by = "Hauptdiagnose")
+hauptdiagnose.coef.crp[, round(.SD, 4), .SDcols = c("Estimate"#, "Std. Error", "df", "t value", "Pr(>|t|)"
+                                                    )]
+
+as.numeric(lmm.crp.inactive$coefficients)
 
 write.csv(hauptdiagnose.coef.crp, "./out/ehealth_lmm_by_disease_entity_inactive_crp_28062023.csv", row.names = FALSE)
 hauptdiagnose.coef.crp[, Disease.cohort := Hauptdiagnose]
@@ -177,7 +180,7 @@ coef_list <- merge(coef_list, hauptdiagnose.colours, by = "Hauptdiagnose", all.x
 write.csv(coef_list, "./out/ehealth_lmm_trp_and_crp_14032023.csv")
 
 coef_list[, Hauptdiagnose := factor(Hauptdiagnose, levels = rev(levels(clindat$Hauptdiagnose)))]
-#crp_forest <- 
+crp_forest <- 
   ggplot(coef_list, mapping = aes(x = Hauptdiagnose, y = Estimate, ymin =`2.5 %`, ymax=`97.5 %`)) + 
   geom_errorbar(aes(color = Disease.cohort), size = 1, width = 0)+
   geom_point(aes(color = Disease.cohort), shape = 18, size = 3) +
@@ -413,7 +416,7 @@ individualplot <- ggplot(clindat[!is.na(Trp) & Patient.no %in% c(383, 30) & visi
   geom_line()+
   geom_point() +
   theme_bw() +
-  ylim(c(0,60)) +<
+  ylim(c(0,60)) +
   ylab("Serum Tryptophan [µM]") +
   xlab("Visit number") +
   labs(title = "Therapy escalation") + 
