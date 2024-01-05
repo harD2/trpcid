@@ -18,18 +18,23 @@ mets[, Disease.entity := factor(Disease.entity, c("Control", "CD","IC", "UC","RA
 lmm.highlow <- lmm.by.status(dat = mets, metnames = trp.derivs.tested, fixed.effect.tested = "Disease.cohort", fixed.effect.controlled = "Sex")
   # uses log transformed data
 high.low.coef.table <- rbindlist(lapply(lmm.highlow$coefs, rbindlist, idcol = "Metabolite"), idcol = "Trp.status")
-high.low.coef.table[grep("^D", rn), `:=`(Sig = pasterics(p.adjust(`Pr(>|t|)`, method = "fdr")), FDR = p.adjust(`Pr(>|t|)`, method = "fdr"))]
+high.low.coef.table <- high.low.coef.table[grep("^D", rn)] # Only the disease rows, no intercepts
+high.low.coef.table[, `:=`(Sig = pasterics(p.adjust(`Pr(>|t|)`, method = "fdr")), FDR = p.adjust(`Pr(>|t|)`, method = "fdr"))]
+high.low.coef.table[Sig == "0.2", Sig := "0.20"]
 high.low.coef.table[grep("^D", rn),.N]
-plot.trp.derivs(plot.mets = trp.derivs.tested, directory = "./out/trp_deriv_boxplots_29062023") 
+plot.trp.derivs(plot.mets = trp.derivs.tested, directory = "./out/trp_deriv_boxplots_04012024") 
 
 
 high.vs.low.lmer <- list()
 for (i in trp.derivs.tested) {
   print(i)
   print(summary(lmer(log10(get(i)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), mets[Trp.status != "Control"]))$coef)
-  high.vs.low.lmer[[i]] <- as.data.table(summary(lmer(log10(get(i)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), 
-                                                      mets[Trp.status != "Control"]))$coef, keep.rownames = TRUE)
-  }
+  high.vs.low.lmer[[i]] <- merge(as.data.table(summary(lmer(log10(get(i)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), 
+                                                      mets[Trp.status != "Control"]))$coef, keep.rownames = TRUE),
+                                 as.data.table(confint(lmer(log10(get(i)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), 
+                                                            mets[Trp.status != "Control"])), keep.rownames = TRUE), by = "rn")
+}
+
 high.vs.low.lmer <- rbindlist(high.vs.low.lmer, idcol = "Metabolite")
 high.vs.low.lmer[rn == "Trp.statusLow", FDR := p.adjust(`Pr(>|t|)`, method = "fdr")]
 
@@ -38,13 +43,13 @@ amino_acids <- names(mets)[c(16:31, 33:34)]
 aa.by.trp.status <- list()
 for (aa in amino_acids) {
   print(aa)
-  aa.by.trp.status[[aa]] <- as.data.table(summary(lmer(log10(get(aa)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), mets))$coef, keep.rownames = TRUE)
+  aa.by.trp.status[[aa]] <- merge(as.data.table(summary(lmer(log10(get(aa)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), mets))$coef, keep.rownames = TRUE),
+                                  as.data.table(confint(lmer(log10(get(aa)) ~ Trp.status + Disease.cohort + Sex + (1|Patient.no), mets)), keep.rownames = TRUE), by = "rn")
 }
 
 
-
-aa.by.trp.status$Ala
 aa.by.trp.table <- rbindlist(aa.by.trp.status, idcol = "Metabolite")
+aa.by.trp.table[Sig == "0.4", Sig := 0.40]
 aa.by.trp.table[rn %in% c("Trp.statusLow", "Trp.statusHigh"), FDR := p.adjust(`Pr(>|t|)`, method = "fdr")]
 aa.by.trp.table[!is.na(FDR), Sig := pasterics(FDR)]
 aa.by.trp.table[Sig == "", Sig := "n.s."]
@@ -57,7 +62,7 @@ aa.by.trp.table.high <- aa.by.trp.table[rn == "Trp.statusHigh"]
 aa.by.trp.table.high[FDR >= 0.05| `t value` < 0]
 aa.by.trp.table.high[FDR < 0.05 & `t value` >  0]
 
-
+plot_aa <- list()
 for (aa in amino_acids) {
   place_sig <- quantile(mets[Trp.status == "High", get(aa)], probs = 1)[1]
   plot_aa <- ggplot(mets, aes(x = Trp.status, y = get(aa), fill = Disease.cohort)) +
@@ -79,28 +84,11 @@ for (aa in amino_acids) {
   cairo_pdf(paste0("./out/aa_boxplots_21032023/", aa, "_high_vs_low_boxplots_21032023.pdf"), width = 4, height = 3)
   print(plot_aa)
   dev.off()
-  
+
   print(plot_aa)
 }
 
-place_sig <- quantile(mets[Trp.status == "High",Tyr], probs = 1)[1]
-ggplot(mets, aes(x = Trp.status, y = Tyr, fill = Disease.cohort)) +
-  annotate('ribbon', x = c(-Inf, Inf),
-           ymin = quantile(mets[Disease.entity == "Control",Tyr])["25%"],
-           ymax = quantile(mets[Disease.entity == "Control", Tyr])["75%"],
-           alpha = 0.5, fill = 'lightgrey') +
-  geom_boxplot() + 
-  scale_fill_manual(values = c(Control = "lightgrey", GI = "#0a9396",MSK = "#94d2bd", Skin ="#bb3e03")) +
-  labs(y = paste(aa, " [μM]"), x = "Trp status", fill = "Affected organ") +
-  
-  geom_text(data = data.table(x = 2, y = place_sig), 
-            aes(x = x, y = y), 
-            label = paste0(aa.by.trp.table[Metabolite == "Tyr" & rn == "Trp.statusHigh", Sig]), inherit.aes = FALSE, size = 6) +
-  geom_text(data = data.table(x = 3, y = place_sig), 
-            aes(x = x, y = y), 
-            label =  paste0(aa.by.trp.table[Metabolite == "Tyr" & rn == "Trp.statusLow", Sig]), inherit.aes = FALSE, size = 6) +
-  theme_bw()
-aa.by.trp.table
+
 
 #### Cohort overview ####
 names(mets)

@@ -78,14 +78,15 @@ disease.entity.box <- ggplot(clindat, aes(Hauptdiagnose, Trp, fill = Disease.coh
 disease.entity.box
 svg("./out/boxplot_disease_entities_15122023.svg", width = 6, height = 3.33)
 disease.entity.box +
-  theme(legend.position = c(0.15, 0.92),
-        legend.background = element_blank(),
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 8),
-        legend.key.size = unit(3.5, "mm"))+
+  # theme(legend.position = c(0.15, 0.92),
+  #       legend.background = element_blank(),
+  #       legend.text = element_text(size = 8),
+  #       legend.title = element_text(size = 8),
+  #       legend.key.size = unit(3.5, "mm"))+
+  theme(legend.position = "none") + 
   guides(fill = guide_legend(nrow = 2, title = "Affected organ system", size = 12))
 dev.off()
-?geom_boxplot
+
 
 ### Inactive Trp by disease ####
 clindat[CRP < 5, crp.inactive := "Inactive"]
@@ -122,8 +123,6 @@ hauptdiagnose.coef.crp <- merge(hauptdiagnose.coef.crp, clindat[!duplicated(Pati
 hauptdiagnose.coef.crp[, round(.SD, 4), .SDcols = c("Estimate"#, "Std. Error", "df", "t value", "Pr(>|t|)"
                                                     )]
 
-as.numeric(lmm.crp.inactive$coefficients)
-
 write.csv(hauptdiagnose.coef.crp, "./out/ehealth_lmm_by_disease_entity_inactive_crp_28062023.csv", row.names = FALSE)
 hauptdiagnose.coef.crp[, Disease.cohort := Hauptdiagnose]
 disease.entity.inactive.crp.box <- ggplot(clindat[!is.na(crp.inactive)], aes(Hauptdiagnose, Trp, fill = Disease.cohort)) +
@@ -149,11 +148,11 @@ disease.entity.inactive.crp.box
 hauptdiagnose.coef.crp
 svg("./out/boxplot_disease_entities_inactive_crp_28062023.svg", width = 6, height = 3.33)
 disease.entity.inactive.crp.box +
-  theme(legend.position = c(0.15, 0.92),
-        legend.background = element_blank(),
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 8),
-        legend.key.size = unit(3.5, "mm"))+
+  # theme(legend.position = c(0.15, 0.92),
+  #       legend.background = element_blank(),
+  #       legend.text = element_text(size = 8),
+  #       legend.title = element_text(size = 8),
+  #       legend.key.size = unit(3.5, "mm"))+
   guides(fill = guide_legend(nrow = 2, title = "Affected organ system", size = 8))
 dev.off()
 
@@ -173,7 +172,7 @@ coef_list <- as.data.table(cbind(t(sapply(trp_lmm_by_disease, function(x) x$sum.
 coef_list[, `:=`(#min.est = Estimate-`Std. Error`, max.est = Estimate+`Std. Error`,
   fdr = p.adjust(`Pr(>|t|)`, method = "fdr"))]
 coef_list[fdr <= 0.05, p.asterix := pasterics(fdr)]
-coef_list[fdr > 0.05, p.round := round(fdr, 3)]
+coef_list[fdr > 0.05, p.round := pasterics(fdr)]
 coef_list <- merge(coef_list, hauptdiagnose.colours, by = "Hauptdiagnose", all.x = T)
 
 
@@ -197,7 +196,7 @@ crp_forest <-
   theme(axis.text = element_text(color = "black"))
 
   
-  
+
 cairo_pdf("./out/forest_plot_trp_crp_14032023.pdf", width = 4, height = 3.6)
 crp_forest +
   theme(legend.position = "none")
@@ -260,25 +259,15 @@ basdai.point <- ggplot(clindat[!is.na(BASDAI)], aes(y = BASDAI, x = Trp)) +
   theme_bw()
 basdai.point
 
-cairo_pdf("./out/basdai_point_plot_04042023.pdf", 2,2)
-basdai.point
-dev.off()
 
-summary(lmm.das28.neg)
 das28.point.neg <- ggplot(clindat[Hauptdiagnose == "RAneg"], aes(y = DAS28, x = Trp)) + 
   geom_point(color = "#94d2bd") + 
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) +
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.003; LMM"), size = 4) +
-  labs(x = "Trp [µM]") +
+  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.0029; LMM"), size = 4) +
+  labs(x = "Trp [µM]", y = "DAS28  - RAneg") +
   theme_bw()
-das28.point.neg
-
-
-cairo_pdf("./out/das28__RAneg_point_plot_04042023.pdf",  width = 2, height = 2)
-das28.point.neg
-dev.off()
 
 
 das28.point.pos <- ggplot(clindat[Hauptdiagnose == "RApos"], aes(y = DAS28, x = Trp)) + 
@@ -286,8 +275,8 @@ das28.point.pos <- ggplot(clindat[Hauptdiagnose == "RApos"], aes(y = DAS28, x = 
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) + 
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.583; LMM"), size = 4) +
-  labs(x = "Trp [µM]") +
+  annotate("text", y = 8*0.95, x = 50, label = paste0("p = 0.58; LMM"), size = 4) +
+  labs(x = "Trp [µM]", y = "DAS28  - RApos") +
   theme_bw()
 das28.point.pos
 
@@ -297,7 +286,7 @@ pasi.point <- ggplot(clindat, aes(x = Trp, y = PASI)) +
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,45)) +
-  annotate("text", y = 45*0.95, x = 50, label = paste0("p = 0.952; linear regression"), size = 4) +
+  annotate("text", y = 45*0.95, x = 50, label = paste0("p = 0.95; linear regression"), size = 4) +
   labs(x = "Trp [µM]") +
   theme_bw()
 pasi.point
@@ -307,7 +296,7 @@ cdai.point <- ggplot(clindat, aes(x = Trp, y = cdai)) +
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,650)) +
-  annotate("text", y = 650*0.95, x = 50, label = paste0("p < 0.001; LMM"), size = 4) +
+  annotate("text", y = 650*0.95, x = 50, label = paste0("p = 0.00021; LMM"), size = 4) +
   labs(x = "Trp [µM]", y = "CDAI") +
   theme_bw()
 cdai.point
@@ -318,7 +307,7 @@ cmayo.point <- ggplot(clindat, aes(x = Trp, y = complete.mayo)) +
   geom_smooth(method = "lm", color = "black") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,15)) +
-  annotate("text", y = 15*0.95, x = 50, label = paste0("p < 0.001; LMM"), size = 4) +
+  annotate("text", y = 15*0.95, x = 50, label = paste0("p < 0.0001; LMM"), size = 4) +
   labs(x = "Trp [µM]", y = "Total Mayo") +
   theme_bw()
 cmayo.point
@@ -331,7 +320,7 @@ dai_combi
 cairo_pdf("./out/dai_point_plots_04042023.pdf", 12,8)
 dai_combi
 dev.off()
-confint(lm.pasi)
+
 
 
 dai_coef <- rbind(PASI = c(summary(lm.pasi)$coef[2,1:2], df = df.residual(lm.pasi), summary(lm.pasi)$coef[2,3:4], confint(lm.pasi)["log10(Trp)",]),
@@ -358,8 +347,6 @@ wilcox.test(trp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) &
 wcxt_crp <- wilcox.test(crp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no)])
 wilcox.test(crp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) & sex == "Female"])
 wilcox.test(crp_sd ~ biologicum.status, data = clindat[!duplicated(Patient.no) & sex == "Male"])
-wcxt_trp$p.value
-
 
 
 varplot_trp <- 
@@ -378,7 +365,7 @@ varplot_trp <-
             aes(x = x, y = y), inherit.aes = FALSE) +
   geom_text(data = data.table(x = c(1.5), y = c(100)), 
             aes(x = x, y = y), 
-            label = paste0("p = ", round(wcxt_trp$p.value, 3)), inherit.aes = FALSE, size = 4)
+            label = paste0("p = ", signif(wcxt_trp$p.value, 2)), inherit.aes = FALSE, size = 4)
 
 pdf("out/ehealth_trp_variance_biologicum_barplots_16032023.pdf", width = 3, height = 3)
 varplot_trp
@@ -402,11 +389,11 @@ varplot_crp <-
             aes(x = x, y = y), inherit.aes = FALSE) +
   geom_text(data = data.table(x = c(1.5), y = c(250)),
             aes(x = x, y = y),
-            label = paste0("p = ", round(wcxt_crp$p.value, 3)), inherit.aes = FALSE, size = 4)
+            label = paste0("p = ", signif(wcxt_crp$p.value, 2)), inherit.aes = FALSE, size = 4)
 
 pdf("out/ehealth_crp_variance_biologicum_barplots_16032023.pdf", width = 3, height = 3)
 varplot_crp
-dev.off()
+p == dev.off()
 
 
 

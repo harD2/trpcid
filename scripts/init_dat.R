@@ -1,4 +1,5 @@
 library(data.table)
+library(ggpubr)
 clindat <- fread("./data/clean/cohort1_public_08082023.csv")
 clindat[, `:=`(Hauptdiagnose = factor(Hauptdiagnose, 
                                   levels = c("Control", 
@@ -29,9 +30,9 @@ stool <- fread("./data/clean/cohort2_stool_biocrates_public_05062023.csv")
 pasterics <- function(p) {
   out <- rep("", length(p))
   for(i in 1:length(p)) {
-    if(p[i] < 0.1)
-      out[i] <- "°"
-    if(p[i] < 0.05)
+    if(p[i] > 0.05)
+      out[i] <- as.character(signif(p[i], digits = 2))
+    if(p[i] <= 0.05)
       out[i] <- "*"
     if(p[i] < 0.01)
       out[i] <- "**"
@@ -89,26 +90,65 @@ plot.trp.derivs <- function (dat = mets, plot.mets = NULL, sig.table = high.low.
              }, fill = "Trp Status") +
       scale_fill_manual(values = c("#DBA8AC", "#26547C", "#79A9D1")) +
       stat_summary(fun=mean, geom="point", shape=23, size=3, color="black",
-                   position = position_dodge2(width = 1,   
-                                              preserve = "single")) + 
-      geom_text(data = data.frame(x= 1.75, y= quantile(dat[, get(i)], probs = 0.999)),
-                aes(x=x, y=y),
-                inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortGI", Sig]) +
-      geom_text(data = data.frame(x= 2.25, y= quantile(dat[, get(i)], probs = 0.999)),
-                aes(x=x, y=y),
-                inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i &rn == "Disease.cohortGI", Sig]) +
-      geom_text(data = data.frame(x= 2.75, y= quantile(dat[, get(i)], probs = 0.999)),
-                aes(x=x, y=y),
-                inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortMSK", Sig]) +
-      geom_text(data = data.frame(x= 3.25, y= quantile(dat[, get(i)], probs = 0.999)),
-                aes(x=x, y=y),
-                inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i & rn == "Disease.cohortMSK", Sig]) +
-      geom_text(data = data.frame(x= 3.75, y= quantile(dat[, get(i)], probs = 0.999)),
-                aes(x=x, y=y),
-                inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortSkin", Sig]) +
-      geom_text(data = data.frame(x= 4.25, y= quantile(dat[, get(i)], probs = 0.999)),
-                aes(x=x, y=y),
-                inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i & rn == "Disease.cohortSkin", Sig]) +
+                   position = position_dodge2(width = 1,
+                                              preserve = "single")) +
+      {if (i == "IndSO4")
+        geom_text(data = data.frame(x= 1.75, y= quantile(dat[, get(i)], probs = 0.999) + 7),
+                  aes(x=x, y=y),
+                  inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortGI", Sig], size = 3)
+        else
+          geom_text(data = data.frame(x= 1.75, y= quantile(dat[, get(i)], probs = 0.999) ),
+                    aes(x=x, y=y),
+                    inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortGI", Sig], size = 3)
+        } +
+
+      {if (i == "IndSO4")
+        geom_text(data = data.frame(x= 2.25, y= quantile(dat[, get(i)], probs = 0.999) + 7),
+                  aes(x=x, y=y),
+                  inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i &rn == "Disease.cohortGI", Sig], size = 3)
+        else
+          geom_text(data = data.frame(x= 2.25, y= quantile(dat[, get(i)], probs = 0.999) ),
+                    aes(x=x, y=y),
+                    inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i &rn == "Disease.cohortGI", Sig], size = 3)
+        } +
+
+      {if (i == "IndSO4")
+        geom_text(data = data.frame(x= 2.75, y= quantile(dat[, get(i)], probs = 0.999) + 7),
+                  aes(x=x, y=y),
+                  inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortMSK", Sig], size = 3)
+        else
+          geom_text(data = data.frame(x= 2.75, y= quantile(dat[, get(i)], probs = 0.999) ),
+                    aes(x=x, y=y),
+                    inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortMSK", Sig], size = 3)
+        } +
+
+      {if (i == "IndSO4")
+        geom_text(data = data.frame(x= 3.25, y= quantile(dat[, get(i)], probs = 0.999) + 7),
+                  aes(x=x, y=y),
+                  inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i & rn == "Disease.cohortMSK", Sig], size = 3)
+        else
+          geom_text(data = data.frame(x= 3.25, y= quantile(dat[, get(i)], probs = 0.999) ),
+                    aes(x=x, y=y),
+                    inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i & rn == "Disease.cohortMSK", Sig], size = 3)
+       } +
+      {if (i == "IndSO4")
+        geom_text(data = data.frame(x= 3.75, y= quantile(dat[, get(i)], probs = 0.999) + 7),
+                  aes(x=x, y=y),
+                  inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortSkin", Sig], size = 3)
+        else
+          geom_text(data = data.frame(x= 3.75, y= quantile(dat[, get(i)], probs = 0.999) ),
+                    aes(x=x, y=y),
+                    inherit.aes = FALSE, label = sig.table[Trp.status == "High" & Metabolite == i & rn == "Disease.cohortSkin", Sig], size = 3)
+      } +
+      {if (i == "IndSO4")
+        geom_text(data = data.frame(x= 4.25, y= quantile(dat[, get(i)], probs = 0.999) + 7),
+                  aes(x=x, y=y),
+                  inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i & rn == "Disease.cohortSkin", Sig], size = 3)
+        else
+          geom_text(data = data.frame(x= 4.25, y= quantile(dat[, get(i)], probs = 0.999) ),
+                    aes(x=x, y=y),
+                    inherit.aes = FALSE, label = sig.table[Trp.status == "Low" & Metabolite == i & rn == "Disease.cohortSkin", Sig], size = 3)
+       } +
       scale_y_log10()
     
     if (dir.exists(directory)) { } # create folder to save the plots to
@@ -127,6 +167,7 @@ plot.trp.derivs <- function (dat = mets, plot.mets = NULL, sig.table = high.low.
   }
   
 }
+
 
 pcorr_mets <- function(dat = NULL, metabolite = "C0", main_cor_parameter = "Trp", other_cor_parameters = c("Sex")) {
   # Take metabolite and do partial correlation against another metabolite of interest (main_cor_parameter), 

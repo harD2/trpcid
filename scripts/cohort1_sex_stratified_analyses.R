@@ -1,8 +1,9 @@
 ### Sex-based differences in Trp metabolism  ###
 rm(list = ls())
+setwd("~/Projects/trpcid_pub/")
 source("./scripts/init_dat.R")
-
-
+library(ggpubr)
+library(lmerTest)
 clindat[, CID.status := fifelse(Hauptdiagnose == "Control", "Control", "CID")]
 male.colors <- c(Control = "#C9B5D5", CID = "#9874AF")
 female.colors <- c(Control = "#9BC6CA", CID = "#4daeb7")
@@ -27,8 +28,8 @@ trp.box <- ggplot(clindat[!is.na(sex)], aes(x = sex, y = Trp, fill= sex)) +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 
 ### 2. CRP plotted
-summary(lmer(log10(CRP) ~ sex + (1|Patient.no), clindat))
-confint(lmer(log10(CRP) ~ sex + (1|Patient.no), clindat))
+# summary(lmer(log10(CRP) ~ sex + (1|Patient.no), clindat))
+# confint(lmer(log10(CRP) ~ sex + (1|Patient.no), clindat))
 # sexMale     -0.003997701 0.08826662
 crp.box <- ggplot(clindat[!is.na(sex)], aes(x = sex, y = CRP, fill= sex)) + 
   geom_boxplot() + 
@@ -60,12 +61,12 @@ for (disease in levels(clindat$Hauptdiagnose)) {
   y_shift_female[[disease]] <- clindat[Hauptdiagnose %in% disease & sex == "Female", quantile(Trp, probs = c(0.35, 0.6), na.rm = TRUE, names = FALSE)]
   # The significance stars are to be plotted at the 0.6 quantile
 }
-round(lmm.females.sum$coefficients[,-5], 3)
+signif(lmm.females.sum$coefficients[,-5], 2)
 lmm.females.conf <- confint(lmm.females)
 hauptdiagnose.coef.female <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$Hauptdiagnose)),
-                                          round(lmm.females.sum$coefficients[,-5], 3),
-                                          `CI 2.5%` = round(lmm.females.conf[-c(1:2), "2.5 %"], 3),
-                                          `CI 97.5%` = round(lmm.females.conf[-c(1:2), "97.5 %"], 3),
+                                          signif(lmm.females.sum$coefficients[,-5], 2),
+                                          `CI 2.5%` = signif(lmm.females.conf[-c(1:2), "2.5 %"], 2),
+                                          `CI 97.5%` = signif(lmm.females.conf[-c(1:2), "97.5 %"], 2),
                                           lower.tail.p = c(NA,as.numeric(pt(q = lmm.females.sum$coefficients[c(-1,-15),4], lmm.females.sum$coefficients[c(-1,-15),3], lower.tail = TRUE))),
                                           fdr = c(NA, p.adjust(as.numeric(pt(q = lmm.females.sum$coefficients[c(-1,-15),4], lmm.females.sum$coefficients[c(-1,-15),3], lower.tail = TRUE)), method = "fdr")),
                                           # calculate lower tail p-value from t value and df
@@ -73,7 +74,7 @@ hauptdiagnose.coef.female <- as.data.table(cbind(Hauptdiagnose = c(levels(clinda
 
 hauptdiagnose.coef.female[, `:=`(y.sig = as.numeric(y.sig), y.no = as.numeric(y.no), fdr = as.numeric(fdr))] # y gives plotting location for significance stars 
 hauptdiagnose.coef.female[!is.na(fdr), Sig := pasterics(fdr)]
-hauptdiagnose.coef.female[fdr > 0.05, Sig := paste0("italic('",round(fdr, 2),"')")]
+hauptdiagnose.coef.female[fdr > 0.05, Sig := paste0("italic('",signif(fdr, 2),"')")]
 hauptdiagnose.coef.female[, CID.status := fifelse(Hauptdiagnose == "Control", "Control", "CID")]
 
 y_iqr_ctrl <- quantile(clindat[Hauptdiagnose == "Control" & sex == "Female", Trp], probs = c(.25, .75))   # to graph grey IQR bar
@@ -114,12 +115,12 @@ for (disease in levels(clindat$Hauptdiagnose)) {
   y_shift_male[[disease]] <- clindat[Hauptdiagnose %in% disease & sex == "Male", quantile(Trp, probs = c(0.35, 0.6), na.rm = TRUE, names = FALSE)]
   # The significance stars are to be plotted at the 0.6 quantile
 }
-round(lmm.males.sum$coefficients[,-5], 3)
+signif(lmm.males.sum$coefficients[,-5], 2)
 lmm.males.conf <- confint(lmm.males)
 hauptdiagnose.coef.male <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$Hauptdiagnose)),
-                                          round(lmm.males.sum$coefficients[,-5], 3),
-                                          `CI 2.5%` = round(lmm.males.conf[-c(1:2), "2.5 %"], 3),
-                                          `CI 97.5%` = round(lmm.males.conf[-c(1:2), "97.5 %"], 3),
+                                          signif(lmm.males.sum$coefficients[,-5], 2),
+                                          `CI 2.5%` = signif(lmm.males.conf[-c(1:2), "2.5 %"], 2),
+                                          `CI 97.5%` = signif(lmm.males.conf[-c(1:2), "97.5 %"], 2),
                                           lower.tail.p = c(NA,as.numeric(pt(q = lmm.males.sum$coefficients[c(-1,-15),4], lmm.males.sum$coefficients[c(-1,-15),3], lower.tail = TRUE))),
                                           fdr = c(NA, p.adjust(as.numeric(pt(q = lmm.males.sum$coefficients[c(-1,-15),4], lmm.males.sum$coefficients[c(-1,-15),3], lower.tail = TRUE)), method = "fdr")),
                                           # calculate lower tail p-value from t value and df
@@ -127,7 +128,7 @@ hauptdiagnose.coef.male <- as.data.table(cbind(Hauptdiagnose = c(levels(clindat$
 
 hauptdiagnose.coef.male[, `:=`(y.sig = as.numeric(y.sig), y.no = as.numeric(y.no), fdr = as.numeric(fdr))] # y gives plotting location for significance stars 
 hauptdiagnose.coef.male[!is.na(fdr), Sig := pasterics(fdr)]
-hauptdiagnose.coef.male[fdr > 0.05, Sig := paste0("italic('",round(fdr, 2),"')")]
+hauptdiagnose.coef.male[fdr > 0.05, Sig := paste0("italic('",signif(fdr, 2),"')")]
 hauptdiagnose.coef.male[, CID.status := fifelse(Hauptdiagnose == "Control", "Control", "CID")]
 
 y_iqr_ctrl <- quantile(clindat[Hauptdiagnose == "Control" & sex == "Male", Trp], probs = c(.25, .75))   # to graph grey IQR bar
@@ -173,10 +174,8 @@ coef_list_female <- as.data.table(cbind(t(sapply(trp_lmm_by_disease_female, func
 coef_list_female[, `:=`(#min.est = Estimate-`Std. Error`, max.est = Estimate+`Std. Error`,
   fdr = p.adjust(`Pr(>|t|)`, method = "fdr"))]
 coef_list_female[fdr <= 0.05, p.asterix := pasterics(fdr)]
-coef_list_female[fdr > 0.05, p.round := round(fdr, 3)]
+coef_list_female[fdr > 0.05, p.round := pasterics(fdr)]
 coef_list_female[, CID.status := fifelse(Hauptdiagnose == "Control", "Control", "CID")]
-coef_list_female <- merge(coef_list_female, hauptdiagnose.colours, by = "Hauptdiagnose", all.x = T)
-
 
 write.csv(coef_list_female, "./out/ehealth_lmm_trp_and_crp_female_03012024.csv")
 
@@ -215,9 +214,8 @@ coef_list_male <- as.data.table(cbind(t(sapply(trp_lmm_by_disease_male, function
 coef_list_male[, `:=`(#min.est = Estimate-`Std. Error`, max.est = Estimate+`Std. Error`,
   fdr = p.adjust(`Pr(>|t|)`, method = "fdr"))]
 coef_list_male[fdr <= 0.05, p.asterix := pasterics(fdr)]
-coef_list_male[fdr > 0.05, p.round := round(fdr, 3)]
+coef_list_male[fdr > 0.05, p.round := pasterics(fdr)]
 coef_list_male[, CID.status := fifelse(Hauptdiagnose == "Control", "Control", "CID")]
-coef_list_male <- merge(coef_list_male,male.colors, by = "CID.status", all.x = T)
 
 
 write.csv(coef_list_male, "./out/ehealth_lmm_trp_and_crp_male_03012024.csv")
@@ -268,7 +266,7 @@ lmm.cdai.male <- lmer(cdai ~ log10(Trp) +
 lmm.cmayo.male <- lmer(complete.mayo ~ log10(Trp) + 
                            (1|Patient.no), clindat[sex == "Male"])
 
-paste0("p = ", round(summary(lmm.basdai.female)$coef["log10(Trp)", "Pr(>|t|)"], 3), " (females)\n p = ", round(summary(lmm.basdai.male)$coef["log10(Trp)", "Pr(>|t|)"], 3), " (males)")
+paste0("p = ", signif(summary(lmm.basdai.female)$coef["log10(Trp)", "Pr(>|t|)"], 2), " (females)\n p = ", signif(summary(lmm.basdai.male)$coef["log10(Trp)", "Pr(>|t|)"], 2), " (males)")
 
 ### Graphs
 basdai.point <- 
@@ -278,15 +276,15 @@ basdai.point <-
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) + 
   labs(x = "Trp [µM]", fill = "Sex", color = "Sex") +
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = ", round(summary(lmm.basdai.female)$coef["log10(Trp)", "Pr(>|t|)"], 3), 
-                                                      " (Female)\np = ", round(summary(lmm.basdai.male)$coef["log10(Trp)", "Pr(>|t|)"], 3), " (Male)"), size = 4) +
+  annotate("text", y = 8*0.95, x = 50, label = paste0("p = ", signif(summary(lmm.basdai.female)$coef["log10(Trp)", "Pr(>|t|)"], 2), 
+                                                      " (Female)\np = ", signif(summary(lmm.basdai.male)$coef["log10(Trp)", "Pr(>|t|)"], 2), " (Male)"), size = 4) +
   scale_fill_manual(values =  c("#30c5d2", "#6C18A0")) +
   scale_color_manual(values =  c("#30c5d2", "#6C18A0")) +
   theme_bw()
 basdai.point
 
 
-summary(lmm.das28.neg)
+
 das28.point.neg <- ggplot(clindat[Hauptdiagnose == "RAneg"], aes(y = DAS28, x = Trp, color = sex, fill = sex)) + 
   geom_point() +
   scale_fill_manual(values =  c("#30c5d2", "#6C18A0")) +
@@ -294,8 +292,8 @@ das28.point.neg <- ggplot(clindat[Hauptdiagnose == "RAneg"], aes(y = DAS28, x = 
   geom_smooth(method = "lm", color = "grey22") +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) +
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = ", round(summary(lmm.das28.neg.female)$coef["log10(Trp)", "Pr(>|t|)"], 3), 
-                                                      " (Female)\np = ", round(summary(lmm.das28.neg.male)$coef["log10(Trp)", "Pr(>|t|)"], 3), " (Male)"), size = 4) +
+  annotate("text", y = 8*0.95, x = 50, label = paste0("p = ", signif(summary(lmm.das28.neg.female)$coef["log10(Trp)", "Pr(>|t|)"], 2), 
+                                                      " (Female)\np = ", signif(summary(lmm.das28.neg.male)$coef["log10(Trp)", "Pr(>|t|)"], 2), " (Male)"), size = 4) +
   labs(x = "Trp [µM]", y = "DAS28  - RAneg", fill = "Sex", color = "Sex") +
   theme_bw()
 das28.point.neg
@@ -308,8 +306,8 @@ das28.point.pos <- ggplot(clindat[Hauptdiagnose == "RApos"], aes(y = DAS28, x = 
   geom_smooth(method = "lm", color = "grey22") +
   scale_x_continuous(limits = c(0,100)) + 
   scale_y_continuous(limits = c(0,8)) + 
-  annotate("text", y = 8*0.95, x = 50, label = paste0("p = ", round(summary(lmm.das28.pos.female)$coef["log10(Trp)", "Pr(>|t|)"], 3), 
-                                                      " (Female)\np = ", round(summary(lmm.das28.pos.male)$coef["log10(Trp)", "Pr(>|t|)"], 3), " (Male)"), size = 4) +
+  annotate("text", y = 8*0.95, x = 50, label = paste0("p = ", signif(summary(lmm.das28.pos.female)$coef["log10(Trp)", "Pr(>|t|)"], 2), 
+                                                      " (Female)\np = ", signif(summary(lmm.das28.pos.male)$coef["log10(Trp)", "Pr(>|t|)"], 2), " (Male)"), size = 4) +
   labs(x = "Trp [µM]", y = "DAS28  - RApos", fill = "Sex", color = "Sex") +
   theme_bw()
 das28.point.pos
@@ -322,7 +320,7 @@ cdai.point <- ggplot(clindat[!is.na(sex)], aes(x = Trp, y = cdai, color = sex, f
   geom_smooth(method = "lm", color = "grey22") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,650)) +
-  annotate("text", y = 650*0.95, x = 50, label = paste0("p = ", round(summary(lmm.cdai.female)$coef["log10(Trp)", "Pr(>|t|)"], 3), 
+  annotate("text", y = 650*0.95, x = 50, label = paste0("p = ", signif(summary(lmm.cdai.female)$coef["log10(Trp)", "Pr(>|t|)"], 2), 
                                                       " (Female)\np = 0.0003 (Male)"), size = 4) +
   labs(x = "Trp [µM]", y = "CDAI", fill = "Sex", color = "Sex") +
   theme_bw()
@@ -335,7 +333,7 @@ cmayo.point <- ggplot(clindat[!is.na(sex)], aes(x = Trp, y = complete.mayo, colo
   geom_smooth(method = "lm", color = "grey22") +
   scale_x_continuous(limits = c(0,100)) +
   scale_y_continuous(limits = c(0,15)) +
-  annotate("text", y = 15*0.95, x = 50, label = paste0("p < 0.0001 (Female)\np = ", round(summary(lmm.cmayo.male)$coef["log10(Trp)", "Pr(>|t|)"], 3), " (Male)"), size = 4) +
+  annotate("text", y = 15*0.95, x = 50, label = paste0("p < 0.0001 (Female)\np = ", signif(summary(lmm.cmayo.male)$coef["log10(Trp)", "Pr(>|t|)"], 2), " (Male)"), size = 4) +
   labs(x = "Trp [µM]", y = "Total Mayo", fill = "Sex", color = "Sex") +
   theme_bw()
 cmayo.point
